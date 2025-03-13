@@ -23,7 +23,18 @@ const userAgent = util.format(
   packageInfo.version,
 );
 
-const SUPPORTED_FORMATS = ["epub", "mobi", "pdf", "pdf_hd", "cbz"];
+const SUPPORTED_FORMATS = [
+  "epub",
+  "mobi",
+  "pdf",
+  "pdf_hd",
+  "prc",
+  "cbz",
+  "zip",
+  "txt",
+  "csv",
+  "iso",
+];
 const ALLOWED_FORMATS = SUPPORTED_FORMATS.concat(["all"]).sort();
 
 const configPath = await getConfigPath();
@@ -595,7 +606,13 @@ async function main() {
       .option("--debug", "Enable debug logging", false)
       .parse(process.argv);
 
-    options = { ...options, ...commander.opts() };
+    if (config.debug ?? commander.debug) {
+      console.log(config, options, commander.opts(), {
+        ...config,
+        ...commander.opts(),
+      });
+    }
+    options = { ...options, ...config, ...commander.opts() };
 
     if (ALLOWED_FORMATS.indexOf(options.format) === -1) {
       console.error(colors.red("Invalid format selected."));
