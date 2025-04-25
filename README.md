@@ -6,15 +6,6 @@ An easy way to download ebooks from your humblebundle account
 
 To run the tool, you can either install NodeJS and use npm to install it, or install Docker and run it as a docker container.
 
-### NPM
-To install it via npm, run:
-
-```shell
-$ npm install -g humblebundle-ebook-downloader
-```
-
-You can now use the tool by running the `humblebundle-ebook-downloader` command.
-
 ### Docker
 To run the tool via Docker, run:
 
@@ -49,6 +40,8 @@ $ humblebundle-ebook-downloader --help
 - [J. Longman](https://github.com/jlongman)
 - [Johannes Löthberg](https://github.com/kyrias)
 - [jaycuse](https://github.com/jaycuse)
+- [localpcguy](https://github.com/localpcguy)
+- [Trevor Vance](https://github.com/Trevo525)
 
 ## License
 See [LICENSE.md](LICENSE.md)
