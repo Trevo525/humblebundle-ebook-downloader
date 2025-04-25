@@ -52,41 +52,60 @@ async function loadPackageInfo() {
   }
 }
 
-async function getConfigPath() {
-  let configPath = path.resolve(
-    os.homedir(),
-    ".humblebundle_ebook_downloader.json",
-  );
-
-  try {
-    await fs.access(configPath);
-    return configPath; // File exists in home directory
-  } catch (homeDirError) {
-    configPath = path.resolve(
-      process.cwd(),
-      ".humblebundle_ebook_downloader.json",
-    );
-    try {
-      await fs.access(configPath);
-      return configPath; // File exists in current working directory
-    } catch (cwdError) {
-      return null; // File does not exist in either location
+async function getConfigPath(args = []) {
+  // Check passed in args first.
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--config" && args[i + 1]) {
+      const directPath = path.resolve(args[i + 1]);
+      try {
+        await fs.access(directPath);
+        return directPath;
+      } catch {
+        console.warn(`--config path does not exist: ${directPath}`);
+      }
+    } else if (args[i].startsWith("--config=")) {
+      const [, configValue] = args[i].split("=");
+      const directPath = path.resolve(configValue);
+      try {
+        await fs.access(directPath);
+        return directPath;
+      } catch {
+        console.warn(`--config path does not exist: ${directPath}`);
+      }
     }
   }
+
+  // Fallback to home directory
+  let fallbackPath = path.resolve(os.homedir(), ".humblebundle_ebook_downloader.json");
+  try {
+    await fs.access(fallbackPath);
+    return fallbackPath;
+  } catch {}
+
+  // Try the current working directory
+  fallbackPath = path.resolve(process.cwd(), ".humblebundle_ebook_downloader.json");
+  try {
+    await fs.access(fallbackPath);
+    return fallbackPath;
+  } catch {}
+
+  // Failsafe
+  return null;
 }
 
-async function loadConfig() {
+async function loadConfig(args = []) {
+  const configPath = await getConfigPath(args);
+
+  if (!configPath) {
+    return {};
+  }
+
   try {
-    await fs.access(configPath);
     const data = await fs.readFile(configPath, "utf8");
     const config = JSON.parse(data);
-    options = config ?? {};
-    return config;
+    return config ?? {};
   } catch (error) {
-    if (error?.code === "ENOENT") {
-      return {};
-    }
-    throw new Error(error);
+    throw new Error(`Failed to load config from ${configPath}: ${error.message}`);
   }
 }
 
@@ -568,68 +587,67 @@ async function downloadBundles(bundles, config) {
 
 async function main() {
   try {
-    let config = await loadConfig();
-    console.log(options);
-    if (ALLOWED_FORMATS.indexOf(commander.format ?? options.format) === -1) {
-      console.error(colors.red("Invalid format provided."));
-      commander.help();
-      return;
-    }
-
     console.log(colors.green("Starting..."));
-
+    
     commander
       .version(packageInfo.version)
       .option(
         "-d, --download-folder <downloader_folder>",
-        "Download folder",
-        config.downloadFolder ?? "download",
+        "Download folder"
       )
       .option(
         "-l, --download-limit <download_limit>",
-        "Parallel download limit",
-        config.downloadLimit ?? 1,
+        "Parallel download limit"
       )
       .option(
         "-f, --format <format>",
         util.format(
           "What format to download the ebook in (%s)",
           ALLOWED_FORMATS.join(", "),
-        ),
-        config.format ?? "epub",
+        )
       )
       .option(
         "--auth-token <auth-token>",
-        "Optional: If you want to run headless, you can specify your authentication cookie from your browser (_simpleauth_sess)",
+        "Optional: If you want to run headless, you can specify your authentication cookie from your browser (_simpleauth_sess)"
       )
       .option("-a, --all", "Download all bundles")
       .option("--debug", "Enable debug logging", false)
+      .option("--config <path>", "Path to config file")
       .parse(process.argv);
 
-    if (config.debug ?? commander.debug) {
-      console.log(config, options, commander.opts(), {
-        ...config,
-        ...commander.opts(),
-      });
-    }
-    options = { ...options, ...config, ...commander.opts() };
+    const cliOptions = commander.opts();
 
-    if (ALLOWED_FORMATS.indexOf(options.format) === -1) {
-      console.error(colors.red("Invalid format selected."));
+    const config = await loadConfig(process.argv);
+
+    if (ALLOWED_FORMATS.indexOf(cliOptions.format ?? config?.format) === -1) {
+      console.error(colors.red("Invalid format provided."));
       commander.help();
+      return;
     }
 
-    let session = await validateSession(config);
+    // Merge config and CLI options (CLI should override config)
+    const options = {
+      ...config,
+      ...cliOptions
+    };
+
+    if (options.debug) {
+      console.log("Debug mode enabled");
+      console.log({ config, cliOptions, merged: options });
+    }
+
+    let session = await validateSession(options);
 
     if (!session) {
       session = await authenticate(saveConfig);
     }
 
     const orders = await fetchOrders(session);
-    const bundles = commander.all
+    const bundles = options.all
       ? sortBundles(orders)
       : await displayOrders(orders);
-    await downloadBundles(bundles, config);
+
+    await downloadBundles(bundles, options);
 
     if (downloadErrors.length > 0) {
       console.warn(

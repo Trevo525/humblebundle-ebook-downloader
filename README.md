@@ -19,12 +19,12 @@ You can now use the tool by running the `humblebundle-ebook-downloader` command.
 To run the tool via Docker, run:
 
 ```shell
-docker run -v $(PWD)/download:/download --rm -it dmarby/humblebundle-ebook-downloader -d /download --auth-token "auth_string_here"
-```
-This will download the books to the `download` folder in your current work directory.
+ docker build -t hb-downloader .
 
-Note that you need to get your auth token from the authentication cookie in your browser after logging in to the humblebundle website (_simpleauth_sess) when using Docker, as the option to interactively log in isn't available.
-When using the tool installed via npm, it will launch a browser and let you log in interactively instead.
+ docker run --rm -it -v "$PWD/config.json:/usr/src/app/config.json" -v "$PWD/download:/download" hb-downloader --config ./config.json
+```
+This will download the books to the directory in your `./config.json` under `downloadFolder`. (I used `/download/download`)
+You should also put your auth-token in the `source` of that config.json
 
 ## Usage
 

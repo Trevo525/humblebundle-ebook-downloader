@@ -1,5 +1,10 @@
-FROM node:10.16.2-alpine
+FROM node:20-alpine
 
-RUN npm install -g humblebundle-ebook-downloader --unsafe-perm=true
+WORKDIR /usr/src/app
 
-ENTRYPOINT ["humblebundle-ebook-downloader"]
+COPY package.json package-lock.json* index.js ./
+RUN npm install
+
+COPY . .
+
+ENTRYPOINT ["node", "index.js"]
